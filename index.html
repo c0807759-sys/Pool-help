@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0c1a14">
+<title>Pool Drill Tracker</title>
+<style>
+:root{--bg:#0c1a14;--card:#14271f;--line:#24453a;--felt:#1f6b4a;--text:#eef5f1;--mute:#93ab9f;--acc:#f4c542;--good:#3ddc84;--bad:#ff5a5a;--blue:#5ab4ff}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font:15px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;overscroll-behavior:none}
+button{font:inherit;color:inherit;background:#22423a;border:1px solid #2f5a4d;border-radius:12px;padding:10px 14px;cursor:pointer}
+button.primary{background:var(--acc);color:#1a1400;border-color:var(--acc);font-weight:700}
+button.good{background:#1d5e3c;border-color:#2c8a59}
+button.bad{background:#5e1d1d;border-color:#8a2c2c}
+button:active{transform:scale(.97)}
+select,input[type=range]{font:inherit}
+select{background:#22423a;color:var(--text);border:1px solid #2f5a4d;border-radius:10px;padding:8px}
+.hidden{display:none!important}
+.screen{position:fixed;inset:0;overflow:auto}
+#home,#stats{padding:calc(env(safe-area-inset-top) + 14px) 16px calc(env(safe-area-inset-bottom) + 30px)}
+.wrap{max-width:760px;margin:0 auto}
+h1{font-size:24px;margin:4px 0 2px}
+h2{font-size:17px;margin:22px 0 10px;color:var(--acc)}
+.sub{color:var(--mute);margin:0 0 6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:12px}
+.tips li{margin:4px 0;color:#cfe0d7}
+.drills{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
+.drill{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12px;cursor:pointer;text-align:left}
+.drill svg{width:100%;height:auto;display:block;margin-bottom:8px}
+.drill .n{font-weight:700}
+.drill .d{color:var(--mute);font-size:13px;margin-top:2px}
+.drill .s{font-size:13px;margin-top:6px;color:var(--acc)}
+.row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid var(--line)}
+.row:last-child{border-bottom:0}
+.row label{flex:1}
+.toprow{display:flex;justify-content:space-between;align-items:center}
+#run{overflow:hidden;background:#000;touch-action:none}
+#video{position:absolute;width:2px;height:2px;opacity:0;pointer-events:none}
+#view{position:absolute;inset:0;width:100%;height:100%}
+#topbar{position:absolute;left:0;right:0;top:0;padding:calc(env(safe-area-inset-top) + 8px) 10px 8px;display:flex;align-items:center;gap:10px;background:linear-gradient(#000c,#0000);pointer-events:none}
+#topbar>*{pointer-events:auto}
+#topbar .title{flex:1;min-width:0}
+#drillName{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#score{color:var(--acc);font-size:14px}
+#status{background:#000a;border:1px solid #fff3;border-radius:20px;padding:6px 12px;font-size:13px;white-space:nowrap}
+#status.ready{background:#1d5e3c;border-color:var(--good)}
+#status.track{background:#5e4a10;border-color:var(--acc)}
+#mini{position:absolute;right:10px;top:calc(env(safe-area-inset-top) + 58px);width:200px;height:100px;border:2px solid #fff5;border-radius:8px;background:#000;image-rendering:pixelated}
+#miniLabel{position:absolute;right:14px;top:calc(env(safe-area-inset-top) + 160px);font-size:11px;color:#fffa;text-shadow:0 1px 2px #000}
+#panel{position:absolute;left:10px;bottom:calc(env(safe-area-inset-bottom) + 70px);max-width:min(520px,calc(100% - 20px));background:#000c;border:1px solid #fff2;border-radius:14px;padding:12px;backdrop-filter:blur(6px)}
+#panel p{margin:0 0 8px}
+#panel .btns{display:flex;flex-wrap:wrap;gap:8px}
+#panel .warn{color:#ffd27a;font-size:13px;margin:6px 0 0}
+#panel .warn.bad{color:#ff8b8b}
+#controls{position:absolute;left:0;right:0;bottom:0;padding:8px 10px calc(env(safe-area-inset-bottom) + 10px);display:flex;gap:8px;justify-content:center;background:linear-gradient(#0000,#000c)}
+#controls button{min-width:64px}
+#flash{position:absolute;left:50%;top:42%;transform:translate(-50%,-50%);font-size:64px;font-weight:900;text-shadow:0 4px 18px #000;pointer-events:none;opacity:0;transition:opacity .25s;text-align:center;line-height:1}
+#flash small{display:block;font-size:20px;font-weight:600;margin-top:8px}
+#flash.show{opacity:1}
+.modal{position:absolute;inset:0;background:#0009;display:flex;align-items:center;justify-content:center;padding:20px}
+.modal .box{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:18px;max-width:380px;text-align:center}
+.modal .btns{display:flex;gap:10px;justify-content:center;margin-top:12px}
+#banner{position:absolute;left:50%;transform:translateX(-50%);top:calc(env(safe-area-inset-top) + 60px);background:#5e1d1d;border:1px solid var(--bad);border-radius:12px;padding:10px 12px;max-width:90%;display:flex;gap:10px;align-items:center;font-size:14px}
+.err{background:#3a1515;border:1px solid #8a2c2c;border-radius:14px;padding:14px}
+.bar{display:flex;align-items:flex-end;gap:3px;height:40px}
+.bar i{display:block;width:10px;background:var(--felt);border-radius:2px 2px 0 0}
+</style>
+</head>
+<body>
+
+<div id="home" class="screen">
+ <div class="wrap">
+  <div class="toprow">
+   <div><h1>🎱 Pool Drill Tracker</h1><p class="sub">Pick a drill, aim your phone at the table, and it counts your makes.</p></div>
+   <button id="btnStats">Stats</button>
+  </div>
+  <div id="camErr" class="err hidden"></div>
+  <div class="card tips">
+   <b>Camera setup</b>
+   <ul style="margin:6px 0 0;padding-left:18px">
+    <li>Mount the phone on a tripod, shelf or light fixture where it can see <b>all 4 corner pockets</b>. It doesn't need to be overhead.</li>
+    <li><b>Higher is better.</b> A steep angle squashes the far end, and the app will warn you if that end gets too small to track.</li>
+    <li>After calibrating, <b>don't move the phone</b>. If it gets bumped, tap Recalibrate.</li>
+    <li>Landscape works best. Plug in the phone for long sessions.</li>
+   </ul>
+  </div>
+  <h2>Drills</h2>
+  <div id="drillList" class="drills"></div>
+  <h2>Settings</h2>
+  <div class="card">
+   <div class="row"><label for="setTable">Table size</label><select id="setTable"><option value="7">7 ft (bar box)</option><option value="8">8 ft</option><option value="9">9 ft (pro)</option></select></div>
+   <div class="row"><label for="setSens">Detection sensitivity <span id="sensVal" class="sub"></span></label><input id="setSens" type="range" min="0" max="100"></div>
+   <div class="row"><label for="setVoice">Say "make" / "miss" out loud</label><input id="setVoice" type="checkbox"></div>
+   <div class="row"><label for="setScratch">A make with a scratch counts as a miss</label><input id="setScratch" type="checkbox"></div>
+   <div class="row"><label>Saved camera calibration</label><button id="btnClearCal">Clear</button></div>
+  </div>
+ </div>
+</div>
+
+<div id="stats" class="screen hidden">
+ <div class="wrap">
+  <div class="toprow"><h1>Your progress</h1><button id="btnStatsBack">Done</button></div>
+  <div id="statsBody"></div>
+  <button id="btnResetStats" class="bad" style="margin-top:12px">Reset all stats</button>
+ </div>
+</div>
+
+<div id="run" class="screen hidden">
+ <video id="video" playsinline muted autoplay></video>
+ <canvas id="view"></canvas>
+ <div id="topbar">
+  <button id="btnBack">‹ Drills</button>
+  <div class="title"><div id="drillName"></div><div id="score"></div></div>
+  <div id="status">Starting…</div>
+ </div>
+ <canvas id="mini" width="320" height="160"></canvas>
+ <div id="miniLabel">top-down view (corrected)</div>
+ <div id="panel"></div>
+ <div id="controls">
+  <button id="btnMade" class="good">✓ Made</button>
+  <button id="btnMiss" class="bad">✗ Miss</button>
+  <button id="btnUndo">↶ Undo</button>
+  <button id="btnFlip" title="Mirror the drill to the other end">⇄ Flip</button>
+  <button id="btnMask" title="Show what the camera detects">◐ Debug</button>
+ </div>
+ <div id="flash"></div>
+ <div id="banner" class="hidden"><span id="bannerText"></span><button id="bannerBtn">Re-learn</button></div>
+ <div id="ask" class="modal hidden"><div class="box"><b id="askTitle">I lost sight of the ball.</b><p id="askText" class="sub">Did it go in?</p><div class="btns"><button id="askYes" class="good">It went in</button><button id="askNo" class="bad">It didn't</button></div></div></div>
+ <div id="confirm" class="modal hidden"><div class="box"><b id="confTitle"></b><p id="confText" class="sub"></p><div class="btns"><button id="confYes" class="bad">Yes</button><button id="confNo">Cancel</button></div></div></div>
+</div>
+
+<script>
+"use strict";
+const store={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+let settings=Object.assign({table:'9',sens:55,voice:true,scratchMiss:true},store.get('pdt.settings',{}));
+let stats=store.get('pdt.stats',{});
+let calib=store.get('pdt.calib',null);
+const saveSettings=()=>store.set('pdt.settings',settings);
+const saveStats=()=>store.set('pdt.stats',stats);
+
+const TABLES={'7':{L:78,W:39},'8':{L:88,W:44},'9':{L:100,W:50}};
+const BALL=2.25;
+const GW=320,GH=160,N=GW*GH;
+const T=()=>TABLES[settings.table];
+const POCK_D=[[0,0],[4,0],[8,0],[8,4],[4,4],[0,4]];
+const PFLIP=[2,1,0,5,4,3];
+const pocketsIn=()=>{const s=T().L/8;return POCK_D.map(p=>[p[0]*s,p[1]*s])};
+
+function cutDrill(id,name,desc,O,p,cut,dist){
+ const P=POCK_D[p],a=Math.atan2(P[1]-O[1],P[0]-O[0]),b=a-cut*Math.PI/180;
+ return{id,name,desc,mode:'single',obj:[O],cue:[+(O[0]-dist*Math.cos(b)).toFixed(2),+(O[1]-dist*Math.sin(b)).toFixed(2)],pocket:p};
+}
+const DRILLS=[
+ cutDrill('straight','Straight-in stop shot','Dead straight into the corner. Hit the cue ball center and freeze it where it hits the object ball.',[6,2],3,0,1.5),
+ cutDrill('side-straight','Straight into the side','Short straight shot into the side pocket. Practice a smooth, level stroke.',[4,3],4,0,1.5),
+ cutDrill('cut30','Half-ball cut (30°)','The most common cut angle. Aim the center of the cue ball at the edge of the object ball.',[7,3],3,30,2),
+ cutDrill('cut45','45° cut','Cut it into the corner. Keep your head still through the stroke.',[7,3],3,45,2),
+ cutDrill('thin','Thin cut (60°)','Thin cut along the rail. Focus on the contact point, not the pocket.',[6.6,3],3,60,2),
+ cutDrill('long','Long straight shot','Long shot down the table. Shows whether your stroke is staying straight.',[6.5,3],3,0,4.5),
+ cutDrill('rail','Ball near the rail','Object ball close to the cushion. Aim to hit the ball and the rail at the same time.',[6,3.85],3,0,4),
+ cutDrill('spot','Spot shot','Object ball on the foot spot, cue ball behind the head string. Cut it into the corner.',[6,2],3,20,3.5),
+ cutDrill('sidecut','Side pocket cut','A 30° cut into the side. Watch out for the pocket jaw.',[3.3,3.2],4,30,2),
+ {id:'line3',name:'Line-up: 3 balls',desc:'Three balls across the table. Run them in any pocket. It tracks how many you make per rack.',mode:'run',obj:[[6,1],[6,2],[6,3]],cue:[2,2],pocket:-1},
+ {id:'run5',name:'Run 5 balls',desc:'Five scattered balls, any pocket. Plan your position and see how many you can run.',mode:'run',obj:[[5,1],[6.6,3.2],[3,3.3],[7.2,0.8],[4.5,2.2]],cue:[2,2],pocket:-1},
+];
+
+function solve(A,b){const n=b.length,M=A.map((r,i)=>[...r,b[i]]);
+ for(let c=0;c<n;c++){let p=c;for(let r=c+1;r<n;r++)if(Math.abs(M[r][c])>Math.abs(M[p][c]))p=r;
+  if(Math.abs(M[p][c])<1e-12)return null;[M[c],M[p]]=[M[p],M[c]];
+  for(let r=0;r<n;r++){if(r===c)continue;const f=M[r][c]/M[c][c];if(!f)continue;for(let k=c;k<=n;k++)M[r][k]-=f*M[c][k];}}
+ return M.map((r,i)=>r[n]/r[i]);}
+function homography(src,dst){const A=[],b=[];
+ for(let i=0;i<4;i++){const[x,y]=src[i],[u,v]=dst[i];
+  A.push([x,y,1,0,0,0,-u*x,-u*y]);b.push(u);A.push([0,0,0,x,y,1,-v*x,-v*y]);b.push(v);}
+ const h=solve(A,b);return h?[...h,1]:null;}
+function applyH(H,x,y){const w=H[6]*x+H[7]*y+H[8];return[(H[0]*x+H[1]*y+H[2])/w,(H[3]*x+H[4]*y+H[5])/w];}
+const dist=(a,b)=>Math.hypot(a[0]-b[0],a[1]-b[1]);
+function tableCorners(){const{L,W}=T();return[[0,0],[L,0],[L,W],[0,W]];}
+function convex(p){let s=0;for(let i=0;i<4;i++){const a=p[i],b=p[(i+1)%4],c=p[(i+2)%4];const cr=(b[0]-a[0])*(c[1]-b[1])-(b[1]-a[1])*(c[0]-b[0]);if(Math.abs(cr)<1e-6)return false;const sg=Math.sign(cr);if(!s)s=sg;else if(sg!==s)return false;}return true;}
+
+const $=s=>document.querySelector(s);
+const video=$('#video'),view=$('#view'),ctx=view.getContext('2d');
+const mini=$('#mini'),mctx=mini.getContext('2d');
+const proc=document.createElement('canvas'),pctx=proc.getContext('2d',{willReadFrequently:true});
+const warpC=document.createElement('canvas');warpC.width=GW;warpC.height=GH;const wctx=warpC.getContext('2d');
+const wimg=wctx.createImageData(GW,GH);
+const maskC=document.createElement('canvas');maskC.width=GW;maskC.height=GH;const mkctx=maskC.getContext('2d');
+const mimg=mkctx.createImageData(GW,GH);
+
+let stream=null,running=false,dpr=1,fit=null;
+let PW=0,PH=0,lut=new Int32Array(N),Hn=null;
+const cur=new Float32Array(N*3),bg=new Float32Array(N*3),mask=new Uint8Array(N),labels=new Int32Array(N),stack=new Int32Array(N);
+let bgReady=false,learnAcc=null,learnN=0;
+let state='idle';
+let calPts=[],drag=-1,dragPos=null;
+let curDrill=null,flip=false,showMask=false;
+let frame=0,lastProc=0,stable=0,mismatch=0,shotF=0,bigFg=0,setupSince=0;
+let blobs=[],tracks=[],areaPerBall=0,cueRef=0,objRef=0;
+let ghostsActive=true,remaining=0,rackMade=0;
+let session=null,lastRec=null,flashT=null,wakeLock=null;
+
+function drillSVG(d){
+ const P=POCK_D;let s=`<svg viewBox="-0.45 -0.45 8.9 4.9"><rect x="-0.45" y="-0.45" width="8.9" height="4.9" rx="0.35" fill="#4a2c17"/><rect x="0" y="0" width="8" height="4" fill="#1f6b4a"/>`;
+ P.forEach(p=>s+=`<circle cx="${p[0]}" cy="${p[1]}" r="0.24" fill="#000"/>`);
+ if(d.pocket>=0){const p=P[d.pocket],o=d.obj[0];s+=`<line x1="${o[0]}" y1="${o[1]}" x2="${p[0]}" y2="${p[1]}" stroke="#f4c542" stroke-width="0.05" stroke-dasharray="0.15 0.1"/>`;
+  s+=`<line x1="${d.cue[0]}" y1="${d.cue[1]}" x2="${o[0]}" y2="${o[1]}" stroke="#fff" stroke-width="0.04" stroke-dasharray="0.12 0.1" opacity=".7"/>`;
+  s+=`<circle cx="${p[0]}" cy="${p[1]}" r="0.34" fill="none" stroke="#f4c542" stroke-width="0.06"/>`;}
+ d.obj.forEach(o=>s+=`<circle cx="${o[0]}" cy="${o[1]}" r="0.16" fill="#f4c542"/>`);
+ s+=`<circle cx="${d.cue[0]}" cy="${d.cue[1]}" r="0.16" fill="#fff"/></svg>`;return s;}
+function pct(m,a){return a?Math.round(100*m/a)+'%':'–'}
+function renderHome(){
+ $('#drillList').innerHTML=DRILLS.map(d=>{const st=stats[d.id];return`<div class="drill" data-id="${d.id}">${drillSVG(d)}<div class="n">${d.name}</div><div class="d">${d.desc}</div><div class="s">${st&&st.att?`${pct(st.made,st.att)} · ${st.made}/${st.att} all-time`:'Not tried yet'}</div></div>`}).join('');
+ document.querySelectorAll('.drill').forEach(el=>el.onclick=()=>startDrill(DRILLS.find(d=>d.id===el.dataset.id)));
+ $('#setTable').value=settings.table;$('#setSens').value=settings.sens;$('#sensVal').textContent=settings.sens;
+ $('#setVoice').checked=settings.voice;$('#setScratch').checked=settings.scratchMiss;
+ $('#btnClearCal').disabled=!calib;$('#btnClearCal').textContent=calib?'Clear':'None saved';
+}
+$('#setTable').onchange=e=>{settings.table=e.target.value;saveSettings();Hn=null;};
+$('#setSens').oninput=e=>{settings.sens=+e.target.value;$('#sensVal').textContent=settings.sens;saveSettings();};
+$('#setVoice').onchange=e=>{settings.voice=e.target.checked;saveSettings();};
+$('#setScratch').onchange=e=>{settings.scratchMiss=e.target.checked;saveSettings();};
+$('#btnClearCal').onclick=()=>{calib=null;store.set('pdt.calib',null);renderHome();};
+$('#btnStats').onclick=()=>{renderStats();$('#home').classList.add('hidden');$('#stats').classList.remove('hidden');};
+$('#btnStatsBack').onclick=()=>{$('#stats').classList.add('hidden');$('#home').classList.remove('hidden');renderHome();};
+$('#btnResetStats').onclick=()=>confirmBox('Reset all stats?','This permanently deletes your history on this phone.',()=>{stats={};saveStats();renderStats();},'#stats');
+function renderStats(){
+ const rows=DRILLS.filter(d=>stats[d.id]&&stats[d.id].att);
+ if(!rows.length){$('#statsBody').innerHTML='<div class="card">No drills logged yet. Pick a drill and start shooting.</div>';return;}
+ let tm=0,ta=0;rows.forEach(d=>{tm+=stats[d.id].made;ta+=stats[d.id].att});
+ $('#statsBody').innerHTML=`<div class="card"><b>Overall:</b> ${pct(tm,ta)} (${tm}/${ta} balls)</div>`+rows.map(d=>{const st=stats[d.id],ss=(st.sessions||[]).slice(-14);
+  const bars=ss.map(s=>`<i title="${s.made}/${s.att}" style="height:${Math.max(3,Math.round(40*s.made/Math.max(1,s.att)))}px"></i>`).join('');
+  const last=ss[ss.length-1];
+  let trend='';if(ss.length>=3){const a=ss.slice(0,Math.ceil(ss.length/2)),b=ss.slice(Math.floor(ss.length/2));const pa=a.reduce((x,s)=>x+s.made,0)/Math.max(1,a.reduce((x,s)=>x+s.att,0)),pb=b.reduce((x,s)=>x+s.made,0)/Math.max(1,b.reduce((x,s)=>x+s.att,0));const df=Math.round((pb-pa)*100);trend=df>0?` · <span style="color:var(--good)">▲ ${df} pts</span>`:df<0?` · <span style="color:var(--bad)">▼ ${-df} pts</span>`:'';}
+  return`<div class="card"><div class="toprow"><b>${d.name}</b><span style="color:var(--acc)">${pct(st.made,st.att)}</span></div><div class="sub">${st.made}/${st.att} all-time · ${(st.sessions||[]).length} sessions${st.bestRun?` · best run ${st.bestRun}`:''}${trend}</div>${bars?`<div class="sub" style="margin-top:8px">Last sessions (make %)</div><div class="bar">${bars}</div>`:''}${last?`<div class="sub" style="font-size:12px;margin-top:4px">Last: ${new Date(last.d).toLocaleDateString()} – ${last.made}/${last.att}</div>`:''}</div>`}).join('');
+}
+function confirmBox(title,text,yes,scope){
+ const m=$('#confirm');$('#confTitle').textContent=title;$('#confText').textContent=text;
+ const host=scope?$(scope):$('#run');host.appendChild(m);m.classList.remove('hidden');
+ $('#confYes').onclick=()=>{m.classList.add('hidden');yes();};$('#confNo').onclick=()=>m.classList.add('hidden');
+}
+
+async function startDrill(d){
+ curDrill=d;flip=false;ghostsActive=true;remaining=d.obj.length;rackMade=0;
+ session={id:d.id,att:0,made:0,start:Date.now(),bestRun:0};lastRec=null;
+ $('#home').classList.add('hidden');$('#run').classList.remove('hidden');
+ $('#drillName').textContent=d.name;updateScore();
+ try{
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia) throw new Error('nohttps');
+  stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}},audio:false});
+  video.srcObject=stream;await video.play();
+ }catch(e){
+  leaveRun(false);
+  const msg=e.message==='nohttps'?'This browser won\'t give the page camera access. Open the app from an <b>https://</b> link (see the setup notes) in Safari or Chrome.':'The camera couldn\'t start ('+(e.name||e.message)+'). Allow camera access for this site in your browser settings, then try again.';
+  $('#camErr').innerHTML=msg;$('#camErr').classList.remove('hidden');return;
+ }
+ $('#camErr').classList.add('hidden');
+ try{if(navigator.wakeLock)wakeLock=await navigator.wakeLock.request('screen');}catch(e){}
+ bgReady=false;Hn=null;PW=0;
+ if(calib&&calib.corners){calPts=calib.corners.map(p=>p.slice());setState('learn');}
+ else{calPts=[];setState('calib');}
+ resize();running=true;requestAnimationFrame(loop);
+}
+function leaveRun(save=true){
+ running=false;
+ if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}
+ try{wakeLock&&wakeLock.release();}catch(e){}wakeLock=null;
+ if(save&&session&&session.att>0){const st=stats[session.id]||(stats[session.id]={att:0,made:0,sessions:[]});st.sessions=st.sessions||[];st.sessions.push({d:session.start,att:session.att,made:session.made});if(st.sessions.length>60)st.sessions.shift();saveStats();}
+ session=null;$('#run').classList.add('hidden');$('#home').classList.remove('hidden');renderHome();
+}
+$('#btnBack').onclick=()=>leaveRun(true);
+window.addEventListener('resize',resize);
+function resize(){dpr=Math.min(window.devicePixelRatio||1,2);view.width=Math.round(innerWidth*dpr);view.height=Math.round(innerHeight*dpr);}
+
+function setState(s){
+ state=s;stable=0;mismatch=0;
+ if(s==='setup')setupSince=frame;
+ const practicing=['setup','armed','shot','result'].includes(s);
+ $('#controls').classList.toggle('hidden',!practicing);
+ $('#mini').classList.toggle('hidden',!(practicing||s==='learn')||!Hn);
+ $('#miniLabel').classList.toggle('hidden',!(practicing||s==='learn')||!Hn);
+ renderPanel();renderStatus();
+}
+function renderStatus(extra){
+ const el=$('#status');el.className='';
+ const map={calib:'Calibrating',learn:'Learning table',setup:'Set up the balls',armed:'Ready, shoot!',shot:'Tracking…',result:'…'};
+ el.textContent=extra||map[state]||'';
+ if(state==='armed')el.classList.add('ready');if(state==='shot')el.classList.add('track');
+}
+function renderPanel(){
+ const p=$('#panel');p.classList.remove('hidden');
+ if(state==='calib'){
+  const n=calPts.length;
+  p.innerHTML=`<p><b>Calibrate (${n}/4)</b>. Tap the 4 corners of the <b>playing surface</b>, where the cushion lines would meet inside each corner pocket. Go <b>around</b> the table, and go along a <b>long rail first</b> (the one with a side pocket).</p>
+  <p class="sub" style="font-size:13px">Drag a dot to fine-tune it. A magnifier shows up while you drag. The blue rings should land on the side pockets.</p>
+  <div class="btns"><button id="cUndo">Undo point</button><button id="cRot" ${n<4?'disabled':''}>Rotate (side pockets wrong)</button><select id="cTable"><option value="7">7 ft</option><option value="8">8 ft</option><option value="9">9 ft</option></select><button id="cDone" class="primary" ${n<4?'disabled':''}>Done</button></div><div id="cWarn"></div>`;
+  $('#cTable').value=settings.table;
+  $('#cTable').onchange=e=>{settings.table=e.target.value;saveSettings();renderPanel();};
+  $('#cUndo').onclick=()=>{calPts.pop();renderPanel();};
+  $('#cRot').onclick=()=>{calPts.push(calPts.shift());renderPanel();};
+  $('#cDone').onclick=finishCalib;
+  if(n===4){$('#cWarn').innerHTML=calibWarnings(calPts).map(w=>`<p class="warn ${w[0]?'bad':''}">${w[1]}</p>`).join('');}
+ }else if(state==='learn'){
+  p.innerHTML=`<p><b>Learn the empty table.</b> Take <b>all balls off</b> and step out of view, then tap <b>Learn table</b>. This takes about 1 second.</p><p class="sub" style="font-size:13px">Check that the outline still matches the table. If the phone moved, tap Adjust corners.</p>
+  <div class="btns"><button id="lGo" class="primary">Learn table</button><button id="lAdj">Adjust corners</button></div><div id="lProg" class="sub"></div>`;
+  $('#lGo').onclick=()=>{if(!ensureH())return;learnAcc=new Float32Array(N*3);learnN=0;$('#lGo').disabled=true;$('#lProg').textContent='Hold still…';};
+  $('#lAdj').onclick=()=>setState('calib');
+ }else if(state==='setup'){
+  const g=ghostsActive;
+  p.innerHTML=`<p id="sMsg">${g?'Place the balls on the circles.':'Leave the balls where they are and shoot again.'}</p><div class="btns"><button id="sArm">Arm now</button><button id="sRe">Re-learn table</button><button id="sCal">Recalibrate</button></div>`;
+  $('#sArm').onclick=()=>{const b=blobs.filter(b=>b.type==='ball');if(b.length)arm(b);};
+  $('#sRe').onclick=()=>{bgReady=false;setState('learn');};
+  $('#sCal').onclick=()=>{bgReady=false;setState('calib');};
+ }else if(state==='armed'){
+  p.innerHTML=`<p><b>Ready.</b> Take your shot whenever you want. Practice strokes are fine.</p><div class="btns"><button id="aRe">Re-place balls</button></div>`;
+  $('#aRe').onclick=()=>setState('setup');
+ }else if(state==='shot'){
+  p.innerHTML=`<p>Tracking the balls…</p>`;
+ }else p.classList.add('hidden');
+}
+function calibWarnings(pts){
+ const out=[];
+ if(!convex(pts)){out.push([1,'Those points cross over each other. Tap the corners in order around the table.']);return out;}
+ const H=homography(tableCorners(),pts);if(!H)return[[1,'Couldn\'t solve the calibration. Try again.']];
+ const vw=video.videoWidth||1280,vh=video.videoHeight||720,pw=vw>=vh?640:640*vw/vh,ph=vw>=vh?640*vh/vw:640;
+ const{L,W}=T();let minB=1e9;
+ for(const[x,y]of[[2,2],[L-2,2],[L-2,W-2],[2,W-2]]){const a=applyH(H,x,y),b=applyH(H,x+BALL,y),c=applyH(H,x,y+BALL);
+  const bx=Math.hypot((b[0]-a[0])*pw,(b[1]-a[1])*ph),by=Math.hypot((c[0]-a[0])*pw,(c[1]-a[1])*ph);minB=Math.min(minB,Math.sqrt(bx*by));}
+ if(minB<4)out.push([1,`The far end is very small in the picture (a ball there is about ${minB.toFixed(1)} px). Raise the camera, move it closer, or point it more directly at the table.`]);
+ else if(minB<6)out.push([0,`Tracking at the far end may be shaky (ball ≈ ${minB.toFixed(1)} px). Raising the camera will help.`]);
+ let area=0;for(let i=0;i<4;i++){const a=pts[i],b=pts[(i+1)%4];area+=a[0]*b[1]-b[0]*a[1];}area=Math.abs(area)/2;
+ if(area<0.12)out.push([0,'The table only fills a small part of the frame. Moving the phone closer will make tracking more accurate.']);
+ if(pts.some(p=>p[0]<0.01||p[0]>0.99||p[1]<0.01||p[1]>0.99))out.push([0,'A corner is right at the edge of the frame. Make sure the whole table is in view.']);
+ if(!out.length)out.push([0,'✓ Calibration looks good.']);
+ return out;
+}
+function finishCalib(){
+ if(calPts.length<4||!convex(calPts))return;
+ calib={corners:calPts.map(p=>p.slice()),table:settings.table};store.set('pdt.calib',calib);
+ Hn=null;ensureH();bgReady=false;setState('learn');
+}
+function ensureH(){
+ if(calPts.length<4)return false;
+ Hn=homography(tableCorners(),calPts);if(!Hn)return false;
+ buildLUT();return true;
+}
+function buildLUT(){
+ const vw=video.videoWidth,vh=video.videoHeight;if(!vw)return;
+ if(vw>=vh){PW=640;PH=Math.round(640*vh/vw);}else{PH=640;PW=Math.round(640*vw/vh);}
+ proc.width=PW;proc.height=PH;
+ const{L,W}=T();
+ for(let v=0;v<GH;v++)for(let u=0;u<GW;u++){
+  const[nx,ny]=applyH(Hn,(u+.5)/GW*L,(v+.5)/GH*W);const px=nx*PW,py=ny*PH;
+  lut[v*GW+u]=(px<0||py<0||px>=PW||py>=PH)?-1:((py|0)*PW+(px|0))*4;
+ }
+ const ballPx=BALL*GW/L;areaPerBall=Math.PI*(ballPx/2)**2*1.4;
+}
+
+function loop(t){
+ if(!running)return;requestAnimationFrame(loop);
+ if(!video.videoWidth)return;
+ if(t-lastProc>=62){lastProc=t;try{processFrame();}catch(e){console.error(e);}}
+ draw();
+}
+function processFrame(){
+ if(!Hn||state==='calib')return;
+ const vw=video.videoWidth,vh=video.videoHeight;
+ if((vw>=vh)!==(PW>=PH)){buildLUT();bgReady=false;if(state!=='learn')setState('learn');}
+ frame++;
+ pctx.drawImage(video,0,0,PW,PH);
+ const d=pctx.getImageData(0,0,PW,PH).data,w=wimg.data;
+ for(let i=0,j=0,k=0;i<N;i++,j+=3,k+=4){const s=lut[i];
+  if(s<0){cur[j]=cur[j+1]=cur[j+2]=0;}else{cur[j]=d[s];cur[j+1]=d[s+1];cur[j+2]=d[s+2];}
+  w[k]=cur[j];w[k+1]=cur[j+1];w[k+2]=cur[j+2];w[k+3]=255;}
+ wctx.putImageData(wimg,0,0);
+ if(state==='learn'){
+  if(learnAcc){for(let j=0;j<N*3;j++)learnAcc[j]+=cur[j];learnN++;
+   const pr=$('#lProg');if(pr)pr.textContent='Learning… '+Math.round(100*learnN/14)+'%';
+   if(learnN>=14){for(let j=0;j<N*3;j++)bg[j]=learnAcc[j]/learnN;learnAcc=null;bgReady=true;mask.fill(0);ghostsActive=true;remaining=curDrill.obj.length;rackMade=0;setState('setup');}}
+  drawMini();return;
+ }
+ if(!bgReady){drawMini();return;}
+ const adapt=state==='setup'||state==='armed';
+ const r=computeMask(adapt);
+ blobs=findBlobs();
+ if(r.fg>0.3*r.valid&&state!=='shot')bigFg++;else bigFg=0;
+ $('#banner').classList.toggle('hidden',bigFg<45);
+ if(bigFg>=45)$('#bannerText').textContent='A lot of the table looks different. The camera may have moved or the lighting changed.';
+ step(r.diff);
+ drawMini();
+}
+$('#bannerBtn').onclick=()=>{bgReady=false;bigFg=0;$('#banner').classList.add('hidden');setState('learn');};
+
+function computeMask(adapt){
+ const thr=30+(100-settings.sens)*0.9;let fg=0,diff=0,valid=0;
+ for(let i=0,j=0;i<N;i++,j+=3){let m=0;
+  if(lut[i]>=0){valid++;
+   const r=cur[j],g=cur[j+1],b=cur[j+2],R=bg[j],G=bg[j+1],B=bg[j+2];
+   const dd=Math.abs(r-R)+Math.abs(g-G)+Math.abs(b-B);
+   if(dd>thr){m=1;const Ic=r+g+b+1,Ib=R+G+B+1,ratio=Ic/Ib;
+    if(ratio>0.4&&ratio<0.95){const cd=Math.abs(r/Ic-R/Ib)+Math.abs(g/Ic-G/Ib)+Math.abs(b/Ic-B/Ib);if(cd<0.07)m=0;}}
+   else if(adapt&&dd<thr*0.5){bg[j]+=(r-R)*0.03;bg[j+1]+=(g-G)*0.03;bg[j+2]+=(b-B)*0.03;}
+  }
+  if(m!==mask[i])diff++;mask[i]=m;fg+=m;}
+ return{fg,diff,valid};
+}
+function findBlobs(){
+ labels.fill(0);const out=[],{L,W}=T(),ballPx=BALL*GW/L;let lab=0;
+ for(let i=0;i<N;i++){if(!mask[i]||labels[i])continue;lab++;
+  let area=0,sx=0,sy=0,sr=0,sg=0,sb=0,x0=GW,x1=0,y0=GH,y1=0,sp=1;stack[0]=i;labels[i]=lab;
+  while(sp){const k=stack[--sp],x=k%GW,y=(k/GW)|0;area++;sx+=x;sy+=y;sr+=cur[k*3];sg+=cur[k*3+1];sb+=cur[k*3+2];
+   if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y;
+   if(x>0&&mask[k-1]&&!labels[k-1]){labels[k-1]=lab;stack[sp++]=k-1;}
+   if(x<GW-1&&mask[k+1]&&!labels[k+1]){labels[k+1]=lab;stack[sp++]=k+1;}
+   if(y>0&&mask[k-GW]&&!labels[k-GW]){labels[k-GW]=lab;stack[sp++]=k-GW;}
+   if(y<GH-1&&mask[k+GW]&&!labels[k+GW]){labels[k+GW]=lab;stack[sp++]=k+GW;}}
+  if(area<0.3*areaPerBall)continue;
+  const bw=x1-x0+1,bh=y1-y0+1;
+  const r=sr/area,g=sg/area,b=sb/area,mn=Math.min(r,g,b),mx=Math.max(r,g,b);
+  const o={x:(sx/area+.5)*L/GW,y:(sy/area+.5)*W/GH,area,bw,bh,x0,x1,y0,y1,cue:mn-(mx-mn)};
+  if(area>4.5*areaPerBall||bw>4.5*ballPx||bh>4.5*ballPx){o.type='occ';}
+  else{o.type='ball';o.n=Math.max(1,Math.min(3,Math.round(area/areaPerBall)));}
+  out.push(o);}
+ return out;
+}
+
+function geom(){const d=curDrill,s=T().L/8,fx=x=>(flip?8-x:x)*s;
+ return{cue:[fx(d.cue[0]),d.cue[1]*s],obj:d.obj.map(o=>[fx(o[0]),o[1]*s]),pocket:d.pocket<0?-1:(flip?PFLIP[d.pocket]:d.pocket)};}
+const expected=()=>ghostsActive?1+curDrill.obj.length:1+remaining;
+function onGhosts(balls){
+ const g=geom(),pts=[g.cue,...g.obj],items=[];balls.forEach(b=>{for(let k=0;k<b.n;k++)items.push(b)});
+ const used=new Set();
+ for(const p of pts){let bi=-1,bd=4.5;items.forEach((b,i)=>{if(used.has(i))return;const dd=dist([b.x,b.y],p);if(dd<bd){bd=dd;bi=i;}});if(bi<0)return false;used.add(bi);}
+ return true;
+}
+function step(diff){
+ const balls=blobs.filter(b=>b.type==='ball'),occ=blobs.filter(b=>b.type==='occ');
+ const count=balls.reduce((s,b)=>s+b.n,0);
+ const still=diff<Math.max(8,areaPerBall*0.6);
+ if(state==='setup'){
+  const exp=expected(),posOk=!ghostsActive||onGhosts(balls);
+  const ok=count===exp&&occ.length===0&&still&&posOk;
+  stable=ok?stable+1:0;
+  const msg=$('#sMsg');
+  if(msg){let t;
+   if(occ.length)t='Waiting for hands and cue to clear the table…';
+   else if(count!==exp)t=`I see ${count} ball${count===1?'':'s'}, expecting ${exp} (${ghostsActive?'cue ball + '+curDrill.obj.length:'cue ball + '+remaining}).`;
+   else if(!posOk)t='Got all the balls. Move them onto the circles, or tap Arm now.';
+   else t='Hold still…';
+   if(ghostsActive&&count!==exp&&frame-setupSince>150)t+=' Tip: if a ball isn\'t being picked up, raise the sensitivity in Settings or tap Re-learn table.';
+   msg.textContent=t;}
+  if(stable>=12)arm(balls);
+ }else if(state==='armed'){
+  updateTracks(balls,occ);
+  if(tracks.some(t=>t.seenF===frame&&dist(t.pos,t.base)>2.2)){shotF=frame;setState('shot');return;}
+  if(occ.length===0&&still&&count!==expected()){if(++mismatch>25)setState('setup');}else mismatch=0;
+ }else if(state==='shot'){
+  updateTracks(balls,occ);
+  const live=tracks.filter(t=>frame-t.seenF<=2);
+  const allStill=live.every(t=>frame-t.stillF>=10);
+  stable=(allStill&&still)?stable+1:0;
+  if((stable>=6&&frame-shotF>10)||frame-shotF>16*15)evaluate();
+ }
+}
+function arm(balls){
+ const items=[];balls.forEach(b=>{for(let k=0;k<b.n;k++)items.push(b)});
+ if(!items.length)return;
+ const singles=balls.filter(b=>b.n===1).map(b=>b.area).sort((a,b)=>a-b);
+ if(singles.length){const{L}=T(),A0=Math.PI*(BALL*GW/L/2)**2;areaPerBall=Math.min(3*A0,Math.max(0.6*A0,singles[singles.length>>1]));}
+ let ci=0;items.forEach((b,i)=>{if(b.cue>items[ci].cue)ci=i;});
+ if(ghostsActive&&items.length>1){const g=geom();let ni=0;items.forEach((b,i)=>{if(dist([b.x,b.y],g.cue)<dist([items[ni].x,items[ni].y],g.cue))ni=i;});
+  if(items[ci].cue-items[ni].cue<20)ci=ni;}
+ cueRef=items[ci].cue;const others=items.filter((_,i)=>i!==ci);objRef=others.length?others.reduce((s,b)=>s+b.cue,0)/others.length:cueRef-60;
+ tracks=items.map((b,i)=>({isCue:i===ci,base:[b.x,b.y],pos:[b.x,b.y],anchor:[b.x,b.y],vel:[0,0],seenF:frame,stillF:frame,maxMove:0}));
+ setState('armed');beep(880,0.06);
+}
+function updateTracks(balls){
+ const cap=balls.map(b=>b.n),pairs=[];
+ tracks.forEach((t,ti)=>{const miss=frame-t.seenF,sp=Math.hypot(t.vel[0],t.vel[1]);
+  const gate=4+Math.min(miss,8)*5+sp*2.5;
+  balls.forEach((b,bi)=>{const dd=dist([b.x,b.y],t.pos);if(dd>gate)return;
+   const cueish=Math.abs(b.cue-cueRef)<Math.abs(b.cue-objRef);
+   pairs.push([dd+(cueish!==t.isCue?6:0),ti,bi]);});});
+ pairs.sort((a,b)=>a[0]-b[0]);const used=new Set();
+ for(const[,ti,bi]of pairs){if(used.has(ti)||cap[bi]<=0)continue;used.add(ti);cap[bi]--;
+  const t=tracks[ti],b=balls[bi],gap=Math.max(1,frame-t.seenF);
+  t.vel=[(b.x-t.pos[0])/gap,(b.y-t.pos[1])/gap];t.pos=[b.x,b.y];t.seenF=frame;
+  t.maxMove=Math.max(t.maxMove,dist(t.pos,t.base));
+  if(dist(t.pos,t.anchor)>0.35){t.anchor=t.pos.slice();t.stillF=frame;}}
+}
+function pocketOf(t){
+ const P=pocketsIn(),{L,W}=T();let best=1e9,bi=-1;
+ for(let k=0;k<=4;k++){const x=Math.min(L+3,Math.max(-3,t.pos[0]+t.vel[0]*k)),y=Math.min(W+3,Math.max(-3,t.pos[1]+t.vel[1]*k));
+  P.forEach((p,i)=>{const dd=dist([x,y],p)-((i===1||i===4)?4.5:5.5);if(dd<best){best=dd;bi=i;}});}
+ return best<0?bi:-1;
+}
+function evaluate(){
+ const objs=tracks.filter(t=>!t.isCue),cue=tracks.find(t=>t.isCue);
+ const pocketed=[];let unsure=0,onTable=0;
+ for(const t of objs){if(frame-t.seenF<=4){onTable++;continue;}const p=pocketOf(t);if(p>=0)pocketed.push(p);else unsure++;}
+ let scratch=false;if(cue&&frame-cue.seenF>4&&pocketOf(cue)>=0)scratch=true;
+ const cueMoved=cue?cue.maxMove:99;
+ if(!pocketed.length&&!unsure&&!scratch&&cueMoved<3){setState('setup');return;}
+ const target=geom().pocket;
+ const good=pocketed.filter(p=>target<0||p===target).length,wrong=pocketed.length-good;
+ const done=extraMade=>{
+  const made=good+extraMade;
+  if(curDrill.mode==='single'){
+   let ok=made>0&&!(scratch&&settings.scratchMiss);
+   record(ok?1:0,1);
+   showResult(ok,scratch?'scratch':wrong&&!good?'wrong pocket':'');
+   afterShot(()=>{ghostsActive=true;setState('setup');});
+  }else{
+   rackMade+=made;remaining=onTable+(extraMade?0:unsure);
+   if(made===0||scratch||remaining<=0){
+    const total=curDrill.obj.length;record(rackMade,total);
+    if(rackMade>session.bestRun)session.bestRun=rackMade;
+    const st=stats[curDrill.id];if(st&&rackMade>(st.bestRun||0)){st.bestRun=rackMade;saveStats();}
+    showResult(rackMade===total,`rack: ${rackMade}/${total}`+(scratch?' (scratch)':''));
+    afterShot(()=>{ghostsActive=true;remaining=total;rackMade=0;setState('setup');});
+   }else{
+    flash(`+${made}`,'var(--good)',`${rackMade} in a row`);say(made>1?made+' in':'make');
+    afterShot(()=>{ghostsActive=false;setState('setup');},900);
+   }
+  }
+ };
+ setState('result');
+ if(unsure){ask(curDrill.mode==='single'?'Did it go in?':`Did the ball${unsure>1?'s':''} I lost go in?`,y=>done(y?unsure:0));}
+ else done(0);
+}
+function afterShot(fn,ms=1600){setTimeout(()=>{if(running&&state==='result')fn();},ms);}
+function record(made,att){
+ if(!session)return;session.att+=att;session.made+=made;lastRec={made,att};
+ const st=stats[session.id]||(stats[session.id]={att:0,made:0,sessions:[]});st.att+=att;st.made+=made;saveStats();updateScore();
+}
+function updateScore(){if(!session)return;$('#score').textContent=session.att?`${session.made}/${session.att} this session · ${pct(session.made,session.att)}`:'No shots yet this session';}
+
+$('#btnMade').onclick=()=>{if(curDrill.mode==='single'){record(1,1);showResult(true,'logged by hand');}else{rackMade++;remaining=Math.max(0,remaining-1);flash('+1','var(--good)',`${rackMade} in a row`);if(remaining<=0){record(rackMade,curDrill.obj.length);showResult(true,'rack cleared');rackMade=0;remaining=curDrill.obj.length;ghostsActive=true;}else ghostsActive=false;}setState('setup');};
+$('#btnMiss').onclick=()=>{if(curDrill.mode==='single'){record(0,1);showResult(false,'logged by hand');}else{const t=curDrill.obj.length;record(rackMade,t);showResult(false,`rack: ${rackMade}/${t}`);rackMade=0;remaining=t;}ghostsActive=true;setState('setup');};
+$('#btnUndo').onclick=()=>{if(!lastRec||!session)return;session.att-=lastRec.att;session.made-=lastRec.made;const st=stats[session.id];if(st){st.att-=lastRec.att;st.made-=lastRec.made;saveStats();}lastRec=null;updateScore();flash('Undone','#fff');};
+$('#btnFlip').onclick=()=>{flip=!flip;ghostsActive=true;if(state!=='shot')setState('setup');};
+$('#btnMask').onclick=()=>{showMask=!showMask;$('#btnMask').classList.toggle('primary',showMask);};
+function ask(text,cb){$('#askText').textContent=text;$('#ask').classList.remove('hidden');
+ $('#askYes').onclick=()=>{$('#ask').classList.add('hidden');cb(true);};$('#askNo').onclick=()=>{$('#ask').classList.add('hidden');cb(false);};}
+
+function flash(txt,color,small){const f=$('#flash');f.innerHTML=txt+(small?`<small>${small}</small>`:'');f.style.color=color;f.classList.add('show');clearTimeout(flashT);flashT=setTimeout(()=>f.classList.remove('show'),1300);}
+function showResult(ok,note){flash(ok?'MAKE':'MISS',ok?'var(--good)':'var(--bad)',note);say(ok?'make':'miss');beep(ok?1046:220,0.15);}
+function say(t){if(!settings.voice)return;try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.rate=1.1;speechSynthesis.speak(u);}catch(e){}}
+let actx=null;function beep(f,d){try{actx=actx||new(window.AudioContext||window.webkitAudioContext)();const o=actx.createOscillator(),g=actx.createGain();o.frequency.value=f;g.gain.value=0.08;o.connect(g);g.connect(actx.destination);o.start();o.stop(actx.currentTime+d);}catch(e){}}
+
+function n2s(n){return[fit.ox+n[0]*fit.w,fit.oy+n[1]*fit.h];}
+function s2n(s){return[Math.min(1,Math.max(0,(s[0]-fit.ox)/fit.w)),Math.min(1,Math.max(0,(s[1]-fit.oy)/fit.h))];}
+function draw(){
+ const cw=view.width,ch=view.height,vw=video.videoWidth,vh=video.videoHeight;
+ const s=Math.min(cw/vw,ch/vh);fit={ox:(cw-vw*s)/2,oy:(ch-vh*s)/2,w:vw*s,h:vh*s,s};
+ ctx.fillStyle='#000';ctx.fillRect(0,0,cw,ch);ctx.drawImage(video,fit.ox,fit.oy,fit.w,fit.h);
+ const H=state==='calib'?(calPts.length===4&&convex(calPts)?homography(tableCorners(),calPts):null):Hn;
+ const t2s=(x,y)=>n2s(applyH(H,x,y));
+ const lw=2*dpr;
+ if(H){
+  const{L,W}=T();
+  ctx.lineWidth=lw;ctx.strokeStyle='#ffffffb0';ctx.beginPath();[[0,0],[L,0],[L,W],[0,W]].forEach((p,i)=>{const q=t2s(...p);i?ctx.lineTo(...q):ctx.moveTo(...q)});ctx.closePath();ctx.stroke();
+  ctx.setLineDash([6*dpr,6*dpr]);ctx.strokeStyle='#ffffff40';ctx.beginPath();ctx.moveTo(...t2s(L/2,0));ctx.lineTo(...t2s(L/2,W));ctx.stroke();ctx.setLineDash([]);
+  ctx.fillStyle='#ffffffa0';for(let i=1;i<8;i++){if(i===4)continue;for(const y of[0,W]){const q=t2s(i*L/8,y);ctx.beginPath();ctx.arc(q[0],q[1],2.5*dpr,0,7);ctx.fill();}}
+  for(let i=1;i<4;i++)for(const x of[0,L]){const q=t2s(x,i*W/4);ctx.beginPath();ctx.arc(q[0],q[1],2.5*dpr,0,7);ctx.fill();}
+  pocketsIn().forEach((p,i)=>{const side=i===1||i===4;ring(t2s,p,side?4.5:5.5,side?'#5ab4ff':'#ffffff70',lw);});
+  if(state!=='calib'&&curDrill){
+   const g=geom();
+   if(g.pocket>=0)ring(t2s,pocketsIn()[g.pocket],5.5,'#f4c542',lw*1.6);
+   if(ghostsActive&&(state==='setup'||state==='armed')){
+    if(g.pocket>=0){ctx.setLineDash([8*dpr,6*dpr]);ctx.strokeStyle='#f4c542b0';ctx.lineWidth=lw;ctx.beginPath();ctx.moveTo(...t2s(...g.obj[0]));ctx.lineTo(...t2s(...pocketsIn()[g.pocket]));ctx.stroke();
+     ctx.strokeStyle='#ffffff80';ctx.beginPath();ctx.moveTo(...t2s(...g.cue));ctx.lineTo(...t2s(...g.obj[0]));ctx.stroke();ctx.setLineDash([]);}
+    ghost(t2s,g.cue,'#ffffff');g.obj.forEach(o=>ghost(t2s,o,'#f4c542'));
+   }
+   if(state==='setup')blobs.forEach(b=>{if(b.type==='ball')ring(t2s,[b.x,b.y],BALL*0.75,'#3ddc84',lw*1.4);});
+   if(state==='armed'||state==='shot')tracks.forEach(t=>{if(frame-t.seenF<=2)ring(t2s,t.pos,BALL*0.8,t.isCue?'#ffffff':'#3ddc84',lw*1.6);});
+  }
+ }
+ if(state==='calib'){
+  ctx.lineWidth=lw;ctx.strokeStyle='#f4c542';
+  if(!H&&calPts.length>1){ctx.beginPath();calPts.forEach((p,i)=>{const q=n2s(p);i?ctx.lineTo(...q):ctx.moveTo(...q)});ctx.stroke();}
+  calPts.forEach((p,i)=>{const q=n2s(p);ctx.fillStyle='#f4c542';ctx.beginPath();ctx.arc(q[0],q[1],9*dpr,0,7);ctx.fill();ctx.fillStyle='#000';ctx.font=`bold ${11*dpr}px sans-serif`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('ABCD'[i],q[0],q[1]);});
+  if(drag>=0&&dragPos){
+   const p=calPts[drag],vx=p[0]*vw,vy=p[1]*vh,src=50,sz=150*dpr,lx=dragPos[0]<cw/2?cw-sz-12*dpr:12*dpr,ly=12*dpr+60*dpr;
+   ctx.save();ctx.beginPath();ctx.arc(lx+sz/2,ly+sz/2,sz/2,0,7);ctx.clip();ctx.drawImage(video,vx-src/2,vy-src/2,src,src,lx,ly,sz,sz);ctx.restore();
+   ctx.strokeStyle='#f4c542';ctx.lineWidth=2*dpr;ctx.beginPath();ctx.arc(lx+sz/2,ly+sz/2,sz/2,0,7);ctx.stroke();
+   ctx.beginPath();ctx.moveTo(lx+sz/2-12*dpr,ly+sz/2);ctx.lineTo(lx+sz/2+12*dpr,ly+sz/2);ctx.moveTo(lx+sz/2,ly+sz/2-12*dpr);ctx.lineTo(lx+sz/2,ly+sz/2+12*dpr);ctx.stroke();
+  }
+ }
+}
+function ballR(t2s,p,r){const a=t2s(p[0],p[1]),b=t2s(p[0]+r,p[1]),c=t2s(p[0],p[1]+r);return[a,Math.max(3,(dist(a,b)+dist(a,c))/2)];}
+function ring(t2s,p,r,col,lw){const[a,rr]=ballR(t2s,p,r);ctx.strokeStyle=col;ctx.lineWidth=lw;ctx.beginPath();ctx.arc(a[0],a[1],rr,0,7);ctx.stroke();}
+function ghost(t2s,p,col){const[a,rr]=ballR(t2s,p,BALL/2);ctx.setLineDash([4*dpr,3*dpr]);ctx.strokeStyle=col;ctx.lineWidth=2*dpr;ctx.beginPath();ctx.arc(a[0],a[1],rr+3*dpr,0,7);ctx.stroke();ctx.setLineDash([]);ctx.fillStyle=col+'40';ctx.fill();}
+function drawMini(){
+ if(!Hn)return;const{L,W}=T(),sx=GW/L,sy=GH/W;
+ mctx.drawImage(warpC,0,0);
+ if(showMask&&bgReady){const m=mimg.data;for(let i=0,k=0;i<N;i++,k+=4){m[k]=255;m[k+1]=40;m[k+2]=40;m[k+3]=mask[i]?170:0;}mkctx.putImageData(mimg,0,0);mctx.drawImage(maskC,0,0);}
+ mctx.lineWidth=1.5;
+ pocketsIn().forEach(p=>{mctx.strokeStyle='#fff8';mctx.beginPath();mctx.arc(p[0]*sx,p[1]*sy,5,0,7);mctx.stroke();});
+ if(curDrill&&(state==='setup'||state==='armed')&&ghostsActive){const g=geom();[g.cue,...g.obj].forEach((o,i)=>{mctx.strokeStyle=i?'#f4c542':'#fff';mctx.setLineDash([2,2]);mctx.beginPath();mctx.arc(o[0]*sx,o[1]*sy,BALL/2*sx+2,0,7);mctx.stroke();mctx.setLineDash([]);});}
+ if(showMask)blobs.forEach(b=>{mctx.strokeStyle=b.type==='occ'?'#ff5a5a':'#3ddc84';mctx.strokeRect(b.x0,b.y0,b.x1-b.x0+1,b.y1-b.y0+1);});
+ if(state==='armed'||state==='shot')tracks.forEach(t=>{mctx.strokeStyle=t.isCue?'#fff':'#3ddc84';mctx.lineWidth=2;mctx.beginPath();mctx.arc(t.pos[0]*sx,t.pos[1]*sy,BALL/2*sx+1.5,0,7);mctx.stroke();});
+}
+
+view.addEventListener('pointerdown',e=>{
+ if(state!=='calib'||!fit)return;const p=[e.clientX*dpr,e.clientY*dpr];
+ let best=-1,bd=48*dpr;calPts.forEach((c,i)=>{const d=dist(n2s(c),p);if(d<bd){bd=d;best=i;}});
+ if(best>=0)drag=best;else if(calPts.length<4){calPts.push(s2n(p));drag=calPts.length-1;}else return;
+ dragPos=p;view.setPointerCapture(e.pointerId);
+});
+view.addEventListener('pointermove',e=>{if(drag<0)return;const p=[e.clientX*dpr,e.clientY*dpr];calPts[drag]=s2n(p);dragPos=p;});
+const endDrag=()=>{if(drag>=0){drag=-1;dragPos=null;renderPanel();}};
+view.addEventListener('pointerup',endDrag);view.addEventListener('pointercancel',endDrag);
+document.addEventListener('visibilitychange',async()=>{if(document.visibilityState==='visible'&&running){try{if(navigator.wakeLock)wakeLock=await navigator.wakeLock.request('screen');}catch(e){}}});
+
+renderHome();
+</script>
+</body>
+</html>
