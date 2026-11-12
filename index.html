@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0c1a14">
+<title>Pool Drill Tracker</title>
+<style>
+:root{--bg:#0c1a14;--card:#14271f;--line:#24453a;--felt:#1f6b4a;--text:#eef5f1;--mute:#93ab9f;--acc:#f4c542;--good:#3ddc84;--bad:#ff5a5a;--blue:#5ab4ff}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font:15px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;overscroll-behavior:none}
+button{font:inherit;color:inherit;background:#22423a;border:1px solid #2f5a4d;border-radius:12px;padding:10px 14px;cursor:pointer}
+button.primary{background:var(--acc);color:#1a1400;border-color:var(--acc);font-weight:700}
+button.good{background:#1d5e3c;border-color:#2c8a59}
+button.bad{background:#5e1d1d;border-color:#8a2c2c}
+button:active{transform:scale(.97)}
+select,input[type=range]{font:inherit}
+select{background:#22423a;color:var(--text);border:1px solid #2f5a4d;border-radius:10px;padding:8px}
+.hidden{display:none!important}
+.screen{position:fixed;inset:0;overflow:auto}
+#home,#stats{padding:calc(env(safe-area-inset-top) + 14px) 16px calc(env(safe-area-inset-bottom) + 30px)}
+.wrap{max-width:760px;margin:0 auto}
+h1{font-size:24px;margin:4px 0 2px}
+h2{font-size:17px;margin:22px 0 10px;color:var(--acc)}
+.sub{color:var(--mute);margin:0 0 6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:12px}
+.tips li{margin:4px 0;color:#cfe0d7}
+.drills{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
+.drill{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12px;cursor:pointer;text-align:left}
+.drill svg{width:100%;height:auto;display:block;margin-bottom:8px}
+.drill .n{font-weight:700}
+.drill .d{color:var(--mute);font-size:13px;margin-top:2px}
+.drill .s{font-size:13px;margin-top:6px;color:var(--acc)}
+.row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid var(--line)}
+.row:last-child{border-bottom:0}
+.row label{flex:1}
+.toprow{display:flex;justify-content:space-between;align-items:center}
+/* run screen */
+#run{overflow:hidden;background:#000;touch-action:none}
+#video{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000;pointer-events:none}
+#view{position:absolute;inset:0;width:100%;height:100%}
+#topbar{position:absolute;left:0;right:0;top:0;padding:calc(env(safe-area-inset-top) + 8px) 10px 8px;display:flex;align-items:center;gap:10px;background:linear-gradient(#000c,#0000);pointer-events:none}
+#topbar>*{pointer-events:auto}
+#topbar .title{flex:1;min-width:0}
+#drillName{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#score{color:var(--acc);font-size:14px}
+#status{background:#000a;border:1px solid #fff3;border-radius:20px;padding:6px 12px;font-size:13px;white-space:nowrap}
+#status.ready{background:#1d5e3c;border-color:var(--good)}
+#status.track{background:#5e4a10;border-color:var(--acc)}
+#mini{position:absolute;right:10px;top:calc(env(safe-area-inset-top) + 58px);width:200px;height:100px;border:2px solid #fff5;border-radius:8px;background:#000;image-rendering:pixelated}
+#miniLabel{position:absolute;right:14px;top:calc(env(safe-area-inset-top) + 160px);font-size:11px;color:#fffa;text-shadow:0 1px 2px #000}
+#panel{position:absolute;left:10px;bottom:calc(env(safe-area-inset-bottom) + 70px);max-width:min(520px,calc(100% - 20px));background:#000c;border:1px solid #fff2;border-radius:14px;padding:12px;backdrop-filter:blur(6px)}
+#panel p{margin:0 0 8px}
+#panel .btns{display:flex;flex-wrap:wrap;gap:8px}
+#panel .warn{color:#ffd27a;font-size:13px;margin:6px 0 0}
+#panel .warn.bad{color:#ff8b8b}
+#controls{position:absolute;left:0;right:0;bottom:0;padding:8px 10px calc(env(safe-area-inset-bottom) + 10px);display:flex;gap:8px;justify-content:center;background:linear-gradient(#0000,#000c)}
+#controls button{min-width:64px}
+#flash{position:absolute;left:50%;top:42%;transform:translate(-50%,-50%);font-size:64px;font-weight:900;text-shadow:0 4px 18px #000;pointer-events:none;opacity:0;transition:opacity .25s;text-align:center;line-height:1}
+#flash small{display:block;font-size:20px;font-weight:600;margin-top:8px}
+#flash.show{opacity:1}
+.modal{position:absolute;inset:0;background:#0009;display:flex;align-items:center;justify-content:center;padding:20px}
+.modal .box{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:18px;max-width:380px;text-align:center}
+.modal .btns{display:flex;gap:10px;justify-content:center;margin-top:12px}
+#banner{position:absolute;left:50%;transform:translateX(-50%);top:calc(env(safe-area-inset-top) + 60px);background:#5e1d1d;border:1px solid var(--bad);border-radius:12px;padding:10px 12px;max-width:90%;display:flex;gap:10px;align-items:center;font-size:14px}
+.err{background:#3a1515;border:1px solid #8a2c2c;border-radius:14px;padding:14px}
+.bar{display:flex;align-items:flex-end;gap:3px;height:40px}
+.bar i{display:block;width:10px;background:var(--felt);border-radius:2px 2px 0 0}
+</style>
+</head>
+<body>
+
+<!-- HOME -->
+<div id="home" class="screen">
+ <div class="wrap">
+  <div class="toprow">
+   <div><h1>🎱 Pool Drill Tracker</h1><p class="sub">Pick a drill, aim your phone at the table, and it counts your makes.</p></div>
+   <button id="btnStats">Stats</button>
+  </div>
+  <div id="camErr" class="err hidden"></div>
+  <div class="card tips">
+   <b>Camera setup</b>
+   <ul style="margin:6px 0 0;padding-left:18px">
+    <li>Mount the phone on a tripod, shelf or light fixture. It doesn't need to be overhead. If it can't see the whole table, pick <b>Half table</b> when calibrating.</li>
+    <li><b>Higher is better.</b> A steep angle squashes the far end, and the app will warn you if that end gets too small to track.</li>
+    <li><b>🔄 Front / Back</b> switches cameras. <b>⇄ Mirror drill</b> moves the drill to the other end of the table.</li>
+    <li>After calibrating, <b>don't move the phone</b>. If it gets bumped, tap Recalibrate.</li>
+    <li>Landscape works best. Plug in the phone for long sessions.</li>
+   </ul>
+  </div>
+  <h2>Drills</h2>
+  <div id="drillList" class="drills"></div>
+  <h2>Settings</h2>
+  <div class="card">
+   <div class="row"><label for="setTable">Table size</label><select id="setTable"><option value="7">7 ft (bar box)</option><option value="8">8 ft</option><option value="9">9 ft (pro)</option></select></div>
+   <div class="row"><label for="setSens">Detection sensitivity <span id="sensVal" class="sub"></span></label><input id="setSens" type="range" min="0" max="100"></div>
+   <div class="row"><label for="setVoice">Say "make" / "miss" out loud</label><input id="setVoice" type="checkbox"></div>
+   <div class="row"><label for="setScratch">A make with a scratch counts as a miss</label><input id="setScratch" type="checkbox"></div>
+   <div class="row"><label>Saved camera calibration</label><button id="btnClearCal">Clear</button></div>
+  </div>
+ </div>
+</div>
+
+<!-- STATS -->
+<div id="stats" class="screen hidden">
+ <div class="wrap">
+  <div class="toprow"><h1>Your progress</h1><button id="btnStatsBack">Done</button></div>
+  <div id="statsBody"></div>
+  <button id="btnResetStats" class="bad" style="margin-top:12px">Reset all stats</button>
+ </div>
+</div>
+
+<!-- RUN -->
+<div id="run" class="screen hidden">
+ <video id="video" playsinline muted autoplay></video>
+ <canvas id="view"></canvas>
+ <div id="topbar">
+  <button id="btnBack">‹ Drills</button>
+  <div class="title"><div id="drillName"></div><div id="score"></div></div>
+  <div id="status">Starting…</div>
+  <button id="btnCam" title="Switch between front and back camera">🔄 Front</button>
+ </div>
+ <canvas id="mini" width="320" height="160"></canvas>
+ <div id="miniLabel">top-down view (corrected)</div>
+ <div id="panel"></div>
+ <div id="controls">
+  <button id="btnMade" class="good">✓ Made</button>
+  <button id="btnMiss" class="bad">✗ Miss</button>
+  <button id="btnUndo">↶ Undo</button>
+  <button id="btnFlip" title="Mirror the drill to the other end of the table">⇄ Mirror drill</button>
+  <button id="btnMask" title="Show what the camera detects">◐ Debug</button>
+ </div>
+ <div id="flash"></div>
+ <div id="banner" class="hidden"><span id="bannerText"></span><button id="bannerBtn">Re-learn</button></div>
+ <div id="ask" class="modal hidden"><div class="box"><b id="askTitle">I lost sight of the ball.</b><p id="askText" class="sub">Did it go in?</p><div class="btns"><button id="askYes" class="good">It went in</button><button id="askNo" class="bad">It didn't</button></div></div></div>
+ <div id="confirm" class="modal hidden"><div class="box"><b id="confTitle"></b><p id="confText" class="sub"></p><div class="btns"><button id="confYes" class="bad">Yes</button><button id="confNo">Cancel</button></div></div></div>
+</div>
+
+<script>
+window.addEventListener('error',function(e){var b=document.getElementById('camErr');if(b){b.classList.remove('hidden');b.textContent='App error: '+(e.message||'unknown')+' (line '+(e.lineno||'?')+'). This usually means the code was pasted incompletely or pasted twice. Delete everything in index.html and paste again.';}});
+</script>
+<script>
+"use strict";
+/* ============ storage ============ */
+const store={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+let settings=Object.assign({table:'9',sens:55,voice:true,scratchMiss:true,facing:'environment'},store.get('pdt.settings',{}));
+let stats=store.get('pdt.stats',{});
+let calib=store.get('pdt.calibs',{}); // saved calibration per camera
+let camLabel='environment',calMode='full',calStep='photo',snapReady=false,contObj=0,armedN=0,panelMin=false;
+const saveSettings=()=>store.set('pdt.settings',settings);
+const saveStats=()=>store.set('pdt.stats',stats);
+
+/* ============ table geometry ============ */
+const TABLES={'7':{L:78,W:39},'8':{L:88,W:44},'9':{L:100,W:50}}; // playing surface, inches
+const BALL=2.25;
+const GW=320,GH=160,N=GW*GH; // top-down grid (table is always 2:1)
+const T=()=>TABLES[settings.table];
+// pockets in diamond units (8 x 4). A = first corner you tap.
+const POCK_D=[[0,0],[4,0],[8,0],[8,4],[4,4],[0,4]];
+const POCK_NAME=['corner A','side A–B','corner B','corner C','side C–D','corner D'];
+const PFLIP=[2,1,0,5,4,3];
+const pocketsIn=()=>{const s=T().L/8;return POCK_D.map(p=>[p[0]*s,p[1]*s])};
+
+/* ============ drills (diamond units) ============ */
+function cutDrill(id,name,desc,O,p,cut,dist){
+ const P=POCK_D[p],a=Math.atan2(P[1]-O[1],P[0]-O[0]),b=a-cut*Math.PI/180;
+ return{id,name,desc,mode:'single',obj:[O],cue:[+(O[0]-dist*Math.cos(b)).toFixed(2),+(O[1]-dist*Math.sin(b)).toFixed(2)],pocket:p};
+}
+const DRILLS=[
+ cutDrill('straight','Straight-in stop shot','Dead straight into the corner. Hit the cue ball center and freeze it where it hits the object ball.',[6,2],3,0,1.5),
+ cutDrill('side-straight','Straight into the side','Short straight shot into the side pocket. Practice a smooth, level stroke.',[4,3],4,0,1.5),
+ cutDrill('cut30','Half-ball cut (30°)','The most common cut angle. Aim the center of the cue ball at the edge of the object ball.',[7,3],3,30,2),
+ cutDrill('cut45','45° cut','Cut it into the corner. Keep your head still through the stroke.',[7,3],3,45,2),
+ cutDrill('thin','Thin cut (60°)','Thin cut along the rail. Focus on the contact point, not the pocket.',[6.6,3],3,60,2),
+ cutDrill('long','Long straight shot','Long shot down the table. Shows whether your stroke is staying straight.',[6.5,3],3,0,4.5),
+ cutDrill('rail','Ball near the rail','Object ball close to the cushion. Aim to hit the ball and the rail at the same time.',[6,3.85],3,0,4),
+ cutDrill('spot','Spot shot','Object ball on the foot spot, cue ball behind the head string. Cut it into the corner.',[6,2],3,20,3.5),
+ cutDrill('sidecut','Side pocket cut','A 30° cut into the side. Watch out for the pocket jaw.',[3.3,3.2],4,30,2),
+ {id:'line3',name:'Line-up: 3 balls',desc:'Three balls across the table. Run them in any pocket. It tracks how many you make per rack.',mode:'run',obj:[[6,1],[6,2],[6,3]],cue:[2,2],pocket:-1},
+ {id:'run5',name:'Run 5 balls',desc:'Five scattered balls, any pocket. Plan your position and see how many you can run.',mode:'run',obj:[[5,1],[6.6,3.2],[3,3.3],[7.2,0.8],[4.5,2.2]],cue:[2,2],pocket:-1},
+];
+
+/* ============ math ============ */
+function solve(A,b){const n=b.length,M=A.map((r,i)=>[...r,b[i]]);
+ for(let c=0;c<n;c++){let p=c;for(let r=c+1;r<n;r++)if(Math.abs(M[r][c])>Math.abs(M[p][c]))p=r;
+  if(Math.abs(M[p][c])<1e-12)return null;[M[c],M[p]]=[M[p],M[c]];
+  for(let r=0;r<n;r++){if(r===c)continue;const f=M[r][c]/M[c][c];if(!f)continue;for(let k=c;k<=n;k++)M[r][k]-=f*M[c][k];}}
+ return M.map((r,i)=>r[n]/r[i]);}
+function homography(src,dst){const A=[],b=[];
+ for(let i=0;i<4;i++){const[x,y]=src[i],[u,v]=dst[i];
+  A.push([x,y,1,0,0,0,-u*x,-u*y]);b.push(u);A.push([0,0,0,x,y,1,-v*x,-v*y]);b.push(v);}
+ const h=solve(A,b);return h?[...h,1]:null;}
+function applyH(H,x,y){const w=H[6]*x+H[7]*y+H[8];return[(H[0]*x+H[1]*y+H[2])/w,(H[3]*x+H[4]*y+H[5])/w];}
+const dist=(a,b)=>Math.hypot(a[0]-b[0],a[1]-b[1]);
+function tableCorners(){const{L,W}=T();return[[0,0],[L,0],[L,W],[0,W]];}
+// the 4 real table points the user taps: whole table = 4 corners, half table = 2 side pockets + 2 corners
+function calSrc(){const{L,W}=T();return calMode==='half'?[[L/2,0],[L,0],[L,W],[L/2,W]]:tableCorners();}
+function convex(p){let s=0;for(let i=0;i<4;i++){const a=p[i],b=p[(i+1)%4],c=p[(i+2)%4];const cr=(b[0]-a[0])*(c[1]-b[1])-(b[1]-a[1])*(c[0]-b[0]);if(Math.abs(cr)<1e-6)return false;const sg=Math.sign(cr);if(!s)s=sg;else if(sg!==s)return false;}return true;}
+
+/* ============ DOM ============ */
+const $=s=>document.querySelector(s);
+const video=$('#video'),view=$('#view'),ctx=view.getContext('2d');
+const mini=$('#mini'),mctx=mini.getContext('2d');
+const proc=document.createElement('canvas'),pctx=proc.getContext('2d',{willReadFrequently:true});
+const warpC=document.createElement('canvas');warpC.width=GW;warpC.height=GH;const wctx=warpC.getContext('2d');
+const wimg=wctx.createImageData(GW,GH);
+const maskC=document.createElement('canvas');maskC.width=GW;maskC.height=GH;const mkctx=maskC.getContext('2d');
+const mimg=mkctx.createImageData(GW,GH);
+const snapC=document.createElement('canvas'),sctx=snapC.getContext('2d'); // calibration photo
+
+/* ============ state ============ */
+let stream=null,running=false,dpr=1,fit=null;
+let PW=0,PH=0,lut=new Int32Array(N),Hn=null; // table inches -> normalized video
+const cur=new Float32Array(N*3),bg=new Float32Array(N*3),mask=new Uint8Array(N),labels=new Int32Array(N),stack=new Int32Array(N);
+let bgReady=false,learnAcc=null,learnN=0;
+let state='idle'; // calib | learn | setup | armed | shot | result
+let calPts=[],drag=-1,dragPos=null;
+let curDrill=null,flip=false,showMask=false;
+let frame=0,lastProc=0,stable=0,mismatch=0,shotF=0,bigFg=0,setupSince=0;
+let blobs=[],tracks=[],areaPerBall=0,cueRef=0,objRef=0;
+let ghostsActive=true,remaining=0,rackMade=0;
+let session=null,lastRec=null,flashT=null,askCb=null,wakeLock=null;
+
+/* ============ home UI ============ */
+function drillSVG(d){
+ const P=POCK_D;let s=`<svg viewBox="-0.45 -0.45 8.9 4.9"><rect x="-0.45" y="-0.45" width="8.9" height="4.9" rx="0.35" fill="#4a2c17"/><rect x="0" y="0" width="8" height="4" fill="#1f6b4a"/>`;
+ P.forEach(p=>s+=`<circle cx="${p[0]}" cy="${p[1]}" r="0.24" fill="#000"/>`);
+ if(d.pocket>=0){const p=P[d.pocket],o=d.obj[0];s+=`<line x1="${o[0]}" y1="${o[1]}" x2="${p[0]}" y2="${p[1]}" stroke="#f4c542" stroke-width="0.05" stroke-dasharray="0.15 0.1"/>`;
+  s+=`<line x1="${d.cue[0]}" y1="${d.cue[1]}" x2="${o[0]}" y2="${o[1]}" stroke="#fff" stroke-width="0.04" stroke-dasharray="0.12 0.1" opacity=".7"/>`;
+  s+=`<circle cx="${p[0]}" cy="${p[1]}" r="0.34" fill="none" stroke="#f4c542" stroke-width="0.06"/>`;}
+ d.obj.forEach(o=>s+=`<circle cx="${o[0]}" cy="${o[1]}" r="0.16" fill="#f4c542"/>`);
+ s+=`<circle cx="${d.cue[0]}" cy="${d.cue[1]}" r="0.16" fill="#fff"/></svg>`;return s;}
+function pct(m,a){return a?Math.round(100*m/a)+'%':'–'}
+function renderHome(){
+ $('#drillList').innerHTML=DRILLS.map(d=>{const st=stats[d.id];return`<div class="drill" data-id="${d.id}">${drillSVG(d)}<div class="n">${d.name}</div><div class="d">${d.desc}</div><div class="s">${st&&st.att?`${pct(st.made,st.att)} · ${st.made}/${st.att} all-time`:'Not tried yet'}</div></div>`}).join('');
+ document.querySelectorAll('.drill').forEach(el=>el.onclick=()=>startDrill(DRILLS.find(d=>d.id===el.dataset.id)));
+ $('#setTable').value=settings.table;$('#setSens').value=settings.sens;$('#sensVal').textContent=settings.sens;
+ $('#setVoice').checked=settings.voice;$('#setScratch').checked=settings.scratchMiss;
+ const has=Object.keys(calib).length>0;
+ $('#btnClearCal').disabled=!has;$('#btnClearCal').textContent=has?'Clear':'None saved';
+}
+$('#setTable').onchange=e=>{settings.table=e.target.value;saveSettings();Hn=null;};
+$('#setSens').oninput=e=>{settings.sens=+e.target.value;$('#sensVal').textContent=settings.sens;saveSettings();};
+$('#setVoice').onchange=e=>{settings.voice=e.target.checked;saveSettings();};
+$('#setScratch').onchange=e=>{settings.scratchMiss=e.target.checked;saveSettings();};
+$('#btnClearCal').onclick=()=>{calib={};store.set('pdt.calibs',{});renderHome();};
+$('#btnStats').onclick=()=>{renderStats();$('#home').classList.add('hidden');$('#stats').classList.remove('hidden');};
+$('#btnStatsBack').onclick=()=>{$('#stats').classList.add('hidden');$('#home').classList.remove('hidden');renderHome();};
+$('#btnResetStats').onclick=()=>confirmBox('Reset all stats?','This permanently deletes your history on this phone.',()=>{stats={};saveStats();renderStats();},'#stats');
+function renderStats(){
+ const rows=DRILLS.filter(d=>stats[d.id]&&stats[d.id].att);
+ if(!rows.length){$('#statsBody').innerHTML='<div class="card">No drills logged yet. Pick a drill and start shooting.</div>';return;}
+ let tm=0,ta=0;rows.forEach(d=>{tm+=stats[d.id].made;ta+=stats[d.id].att});
+ $('#statsBody').innerHTML=`<div class="card"><b>Overall:</b> ${pct(tm,ta)} (${tm}/${ta} balls)</div>`+rows.map(d=>{const st=stats[d.id],ss=(st.sessions||[]).slice(-14);
+  const bars=ss.map(s=>`<i title="${s.made}/${s.att}" style="height:${Math.max(3,Math.round(40*s.made/Math.max(1,s.att)))}px"></i>`).join('');
+  const last=ss[ss.length-1],first=ss[0];
+  let trend='';if(ss.length>=3){const a=ss.slice(0,Math.ceil(ss.length/2)),b=ss.slice(Math.floor(ss.length/2));const pa=a.reduce((x,s)=>x+s.made,0)/Math.max(1,a.reduce((x,s)=>x+s.att,0)),pb=b.reduce((x,s)=>x+s.made,0)/Math.max(1,b.reduce((x,s)=>x+s.att,0));const df=Math.round((pb-pa)*100);trend=df>0?` · <span style="color:var(--good)">▲ ${df} pts</span>`:df<0?` · <span style="color:var(--bad)">▼ ${-df} pts</span>`:'';}
+  return`<div class="card"><div class="toprow"><b>${d.name}</b><span style="color:var(--acc)">${pct(st.made,st.att)}</span></div><div class="sub">${st.made}/${st.att} all-time · ${(st.sessions||[]).length} sessions${st.bestRun?` · best run ${st.bestRun}`:''}${trend}</div>${bars?`<div class="sub" style="margin-top:8px">Last sessions (make %)</div><div class="bar">${bars}</div>`:''}${last?`<div class="sub" style="font-size:12px;margin-top:4px">Last: ${new Date(last.d).toLocaleDateString()} – ${last.made}/${last.att}</div>`:''}</div>`}).join('');
+}
+function confirmBox(title,text,yes,scope){
+  const m=$('#confirm');$('#confTitle').textContent=title;$('#confText').textContent=text;
+ const host=scope?$(scope):$('#run');host.appendChild(m);m.classList.remove('hidden');
+ $('#confYes').onclick=()=>{m.classList.add('hidden');yes();};$('#confNo').onclick=()=>m.classList.add('hidden');
+}
+
+/* ============ run lifecycle ============ */
+async function startDrill(d){
+ curDrill=d;flip=false;ghostsActive=true;remaining=d.obj.length;rackMade=0;
+ session={id:d.id,att:0,made:0,start:Date.now(),bestRun:0};lastRec=null;
+ $('#home').classList.add('hidden');$('#run').classList.remove('hidden');
+ $('#drillName').textContent=d.name;updateScore();
+ try{
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia) throw new Error('nohttps');
+  await openCamera(settings.facing||'environment');
+ }catch(e){
+  leaveRun(false);
+  const msg=e.message==='nohttps'?'This browser won\'t give the page camera access. Open the app from an <b>https://</b> link (see the setup notes) in Safari or Chrome.':'The camera couldn\'t start ('+(e.name||e.message)+'). Allow camera access for this site in your browser settings, then try again.';
+  $('#camErr').innerHTML=msg;$('#camErr').classList.remove('hidden');return;
+ }
+ $('#camErr').classList.add('hidden');
+ try{if(navigator.wakeLock)wakeLock=await navigator.wakeLock.request('screen');}catch(e){}
+ applyCalibForCamera();
+ resize();running=true;requestAnimationFrame(loop);
+}
+async function openCamera(facing){
+ if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}
+ video.srcObject=null;
+ const base={width:{ideal:1280},height:{ideal:720}};
+ try{stream=await navigator.mediaDevices.getUserMedia({video:Object.assign({facingMode:{exact:facing}},base),audio:false});}
+ catch(e){if(e.name==='NotAllowedError')throw e;stream=await navigator.mediaDevices.getUserMedia({video:Object.assign({facingMode:facing},base),audio:false});}
+ video.srcObject=stream;
+ await new Promise(r=>{if(video.readyState>=1)return r();video.onloadedmetadata=()=>r();setTimeout(r,2500);});
+ try{await Promise.race([video.play(),new Promise(r=>setTimeout(r,1500))]);}catch(e){}
+ camLabel=facing;
+ $('#btnCam').textContent=facing==='user'?'🔄 Back':'🔄 Front';
+}
+function loadSnap(url){snapReady=false;const img=new Image();img.onload=()=>{snapC.width=img.width;snapC.height=img.height;sctx.drawImage(img,0,0);snapReady=true;};img.src=url;}
+function applyCalibForCamera(){
+ bgReady=false;Hn=null;PW=0;learnAcc=null;tracks=[];blobs=[];snapReady=false;
+ const c=calib[camLabel];
+ if(c&&c.corners){
+  calPts=c.corners.map(p=>p.slice());if(c.table)settings.table=c.table;calMode=c.mode||'full';
+  if(c.photo){loadSnap(c.photo);calStep='align';panelMin=true;setState('calib');} // line the phone back up with the saved photo
+  else{panelMin=false;setState('learn');}
+ }else{calPts=[];calStep='photo';panelMin=false;setState('calib');}
+}
+let switching=false;
+$('#btnCam').onclick=async()=>{
+ if(switching)return;switching=true;
+ const next=settings.facing==='user'?'environment':'user';
+ try{await openCamera(next);settings.facing=next;saveSettings();flash('📷','#fff',next==='user'?'Front camera':'Back camera');}
+ catch(e){try{await openCamera(settings.facing);}catch(_){}flash('📷','#fff','Couldn\'t switch cameras');}
+ applyCalibForCamera();switching=false;
+};
+function leaveRun(save=true){
+ running=false;
+ if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}
+ try{wakeLock&&wakeLock.release();}catch(e){}wakeLock=null;
+ if(save&&session&&session.att>0){const st=stats[session.id]||(stats[session.id]={att:0,made:0,sessions:[]});st.sessions=st.sessions||[];st.sessions.push({d:session.start,att:session.att,made:session.made});if(st.sessions.length>60)st.sessions.shift();saveStats();}
+ session=null;$('#run').classList.add('hidden');$('#home').classList.remove('hidden');renderHome();
+}
+$('#btnBack').onclick=()=>leaveRun(true);
+window.addEventListener('resize',resize);
+function resize(){dpr=Math.min(window.devicePixelRatio||1,2);view.width=Math.round(innerWidth*dpr);view.height=Math.round(innerHeight*dpr);}
+
+function setState(s){
+ state=s;stable=0;mismatch=0;
+ if(s==='setup')setupSince=frame;
+ const practicing=['setup','armed','shot','result'].includes(s);
+ $('#controls').classList.toggle('hidden',!practicing);
+ $('#mini').classList.toggle('hidden',!(practicing||s==='learn')||!Hn);
+ $('#miniLabel').classList.toggle('hidden',!(practicing||s==='learn')||!Hn);
+ renderPanel();renderStatus();
+}
+function renderStatus(extra){
+ const el=$('#status');el.className='';
+ const map={calib:'Calibrating',learn:'Learning table',setup:'Set up the balls',armed:'Ready, shoot!',shot:'Tracking…',result:'…'};
+ el.textContent=extra||map[state]||'';
+ if(state==='armed')el.classList.add('ready');if(state==='shot')el.classList.add('track');
+}
+function startLearn(){if(!ensureH())return;learnAcc=new Float32Array(N*3);learnN=0;const b=$('#lGo');if(b)b.disabled=true;const pr=$('#lProg');if(pr)pr.textContent='Hold still…';else flash('…','#fff','Learning the table, hold still');}
+function takePhoto(){
+ const vw=video.videoWidth,vh=video.videoHeight;if(!vw){flash('📷','#fff','Camera not ready yet');return;}
+ const sc=Math.min(1,960/Math.max(vw,vh));snapC.width=Math.round(vw*sc);snapC.height=Math.round(vh*sc);
+ sctx.drawImage(video,0,0,snapC.width,snapC.height);snapReady=true;
+ calPts=[];calStep='points';panelMin=true;beep(660,0.08);renderPanel();
+}
+const TABLE_SEL=`<select id="cTable"><option value="7">7 ft</option><option value="8">8 ft</option><option value="9">9 ft</option></select>`;
+function calibPanel(p){
+ const n=calPts.length,half=calMode==='half';
+ const modeBtns=`<button id="mFull" class="${half?'':'primary'}">Whole table</button><button id="mHalf" class="${half?'primary':''}">Half table</button>${TABLE_SEL}`;
+ const how=half?`Tap 4 spots going <b>around</b> the half you can see: a <b>side pocket</b>, the <b>corner pocket</b> past it on the same rail, the <b>other corner pocket</b> on that end, then the <b>other side pocket</b>.`
+  :`Tap the 4 <b>corner pockets</b> going <b>around</b> the table. Go along a <b>long rail</b> (the one with a side pocket) first.`;
+ if(calStep==='photo'){
+  p.innerHTML=`<p><b>Step 1 of 3: Take a photo.</b> Put the phone where it will stay while you practice, aimed at the table, then tap <b>Take photo</b>.</p><p class="sub" style="font-size:13px">If the camera can't see the whole table, choose Half table.</p><div class="btns">${modeBtns}<button id="cSnap" class="primary">📸 Take photo</button></div>`;
+ }else if(calStep==='points'){
+  const warns=n===4?calibWarnings(calPts):[],bad=warns.find(w=>w[0]);
+  if(panelMin)p.innerHTML=`<div class="btns" style="align-items:center"><b>Step 2: tap ${n}/4</b><button id="cUndo">Undo</button><button id="cRot" ${n<4?'disabled':''}>Rotate</button><button id="cNext" class="primary" ${n<4?'disabled':''}>Continue</button><button id="pMax">▴ Help</button></div>`+(bad?`<p class="warn bad">${bad[1]}</p>`:'');
+  else p.innerHTML=`<p><b>Step 2 of 3: Mark the table (${n}/4).</b> ${how}</p><p class="sub" style="font-size:13px">Tap where the cushion lines would meet inside each pocket. Drag a dot to fine-tune it (a magnifier shows up). The blue rings should sit on the side pockets. If they don't, tap Rotate.</p><div class="btns">${modeBtns}</div><div class="btns" style="margin-top:8px"><button id="cUndo">Undo point</button><button id="cRot" ${n<4?'disabled':''}>Rotate</button><button id="cRetake">Retake photo</button><button id="cNext" class="primary" ${n<4?'disabled':''}>Continue</button><button id="pMinB">▾ Hide</button></div>`+warns.map(w=>`<p class="warn ${w[0]?'bad':''}">${w[1]}</p>`).join('');
+ }else{
+  if(panelMin)p.innerHTML=`<div class="btns" style="align-items:center"><b>Step 3: line it up</b><button id="cRetake">New photo</button><button id="cDone" class="primary">Continue</button><button id="pMax">▴ Help</button></div>`;
+  else p.innerHTML=`<p><b>Step 3 of 3: Line it up.</b> The faded picture is your photo. Move or turn the phone until the live camera lines up with it, then tap <b>Continue</b>.</p><div class="btns"><button id="cRetake">New photo</button><button id="cPts">Move points</button><button id="cDone" class="primary">Continue</button><button id="pMinB">▾ Hide</button></div>`;
+ }
+ const on=(id,f)=>{const e=$('#'+id);if(e)e.onclick=f;};
+ const sel=$('#cTable');if(sel){sel.value=settings.table;sel.onchange=e=>{settings.table=e.target.value;saveSettings();renderPanel();};}
+ on('mFull',()=>{calMode='full';renderPanel();});on('mHalf',()=>{calMode='half';renderPanel();});
+ on('cSnap',takePhoto);
+ on('cUndo',()=>{calPts.pop();renderPanel();});
+ on('cRot',()=>{calPts.push(calPts.shift());renderPanel();});
+ on('cNext',()=>{if(calPts.length<4)return;if(!convex(calPts)){flash('✗','var(--bad)','The points cross over. Tap them in order around the table.');return;}calStep='align';panelMin=true;renderPanel();});
+ on('cRetake',()=>{calStep='photo';calPts=[];snapReady=false;panelMin=false;renderPanel();});
+ on('cPts',()=>{calStep='points';renderPanel();});
+ on('cDone',finishCalib);
+ on('pMax',()=>{panelMin=false;renderPanel();});
+ on('pMinB',()=>{panelMin=true;renderPanel();});
+}
+function renderPanel(){
+ const p=$('#panel');p.classList.remove('hidden');
+ if(state==='calib'){calibPanel(p);return;}
+ const canMin=['learn','setup','armed'].includes(state);
+ if(panelMin&&canMin){ // small bar so the table isn't covered
+  p.innerHTML=`<div class="btns" style="align-items:center">`+
+   (state==='learn'?`<b>Clear the table</b><button id="lGo" class="primary">Learn table</button>`:'')+
+   (state==='setup'?`<span id="sMsg" style="max-width:240px;font-size:14px">Place the balls on the circles.</span><button id="sArm">Arm now</button>`:'')+
+   (state==='armed'?`<b>Ready, shoot!</b>`:'')+
+   `<button id="pMax">▴ Help</button></div>`;
+  if($('#lGo'))$('#lGo').onclick=startLearn;
+  if($('#sArm'))$('#sArm').onclick=()=>{const b=blobs.filter(b=>b.type==='ball');if(b.length)arm(b);};
+  $('#pMax').onclick=()=>{panelMin=false;renderPanel();};
+  return;
+ }
+ if(state==='learn'){
+  p.innerHTML=`<p><b>Learn the empty table.</b> Take <b>all balls off</b> and step out of view, then tap <b>Learn table</b>. This takes about 1 second.</p>
+  <div class="btns"><button id="lGo" class="primary">Learn table</button><button id="lAdj">Adjust points</button><button id="lNew">Recalibrate</button></div><div id="lProg" class="sub"></div>`;
+  $('#lGo').onclick=startLearn;
+  $('#lAdj').onclick=()=>{calStep=snapReady?'points':'photo';panelMin=snapReady;setState('calib');};
+  $('#lNew').onclick=()=>{calStep='photo';calPts=[];snapReady=false;panelMin=false;setState('calib');};
+ }else if(state==='setup'){
+  const g=ghostsActive;
+  p.innerHTML=`<p id="sMsg">${g?'Place the balls on the circles.':'Leave the balls where they are and shoot again.'}</p><div class="btns"><button id="sArm">Arm now</button><button id="sRe">Re-learn table</button><button id="sCal">Recalibrate</button></div>`;
+  $('#sArm').onclick=()=>{const b=blobs.filter(b=>b.type==='ball');if(b.length)arm(b);};
+  $('#sRe').onclick=()=>{bgReady=false;setState('learn');};
+  $('#sCal').onclick=()=>{bgReady=false;calStep='photo';calPts=[];snapReady=false;panelMin=false;setState('calib');};
+ }else if(state==='armed'){
+  p.innerHTML=`<p><b>Ready.</b> Take your shot whenever you want. Practice strokes are fine.</p><div class="btns"><button id="aRe">Re-place balls</button></div>`;
+  $('#aRe').onclick=()=>setState('setup');
+ }else if(state==='shot'){
+  p.innerHTML=`<p>Tracking the balls…</p>`;
+ }else p.classList.add('hidden');
+ if(canMin){p.insertAdjacentHTML('afterbegin',`<div style="text-align:right;margin:-4px -4px 4px 0"><button id="pMin" style="padding:4px 12px;font-size:13px">▾ Hide</button></div>`);$('#pMin').onclick=()=>{panelMin=true;renderPanel();};}
+}
+function calibWarnings(pts){
+ const out=[];
+ if(!convex(pts)){out.push([1,'Those points cross over each other. Tap the corners in order around the table.']);return out;}
+ const H=homography(calSrc(),pts);if(!H)return[[1,'Couldn\'t solve the calibration. Try again.']];
+ const vw=video.videoWidth||1280,vh=video.videoHeight||720,pw=vw>=vh?640:640*vw/vh,ph=vw>=vh?640*vh/vw:640;
+ const{L,W}=T();let minB=1e9;
+ const src=calSrc(),cx=src.reduce((a,p)=>a+p[0],0)/4,cy=src.reduce((a,p)=>a+p[1],0)/4;
+ for(const[x,y]of src.map(p=>[p[0]+Math.sign(cx-p[0])*2,p[1]+Math.sign(cy-p[1])*2])){const a=applyH(H,x,y),b=applyH(H,x+BALL,y),c=applyH(H,x,y+BALL);
+  const bx=Math.hypot((b[0]-a[0])*pw,(b[1]-a[1])*ph),by=Math.hypot((c[0]-a[0])*pw,(c[1]-a[1])*ph);minB=Math.min(minB,Math.sqrt(bx*by));}
+ if(minB<4)out.push([1,`The far end is very small in the picture (a ball there is about ${minB.toFixed(1)} px). Raise the camera, move it closer, or point it more directly at the table.`]);
+ else if(minB<6)out.push([0,`Tracking at the far end may be shaky (ball ≈ ${minB.toFixed(1)} px). Raising the camera will help.`]);
+ let area=0;for(let i=0;i<4;i++){const a=pts[i],b=pts[(i+1)%4];area+=a[0]*b[1]-b[0]*a[1];}area=Math.abs(area)/2;
+ if(area<0.12)out.push([0,'The table only fills a small part of the frame. Moving the phone closer will make tracking more accurate.']);
+ if(pts.some(p=>p[0]<0.01||p[0]>0.99||p[1]<0.01||p[1]>0.99))out.push([0,'A corner is right at the edge of the frame. Make sure the whole table is in view.']);
+ if(!out.length)out.push([0,'✓ Calibration looks good.']);
+ return out;
+}
+function finishCalib(){
+ if(calPts.length<4||!convex(calPts))return;
+ let photo=null;try{if(snapReady)photo=snapC.toDataURL('image/jpeg',0.6);}catch(e){}
+ calib[camLabel]={corners:calPts.map(p=>p.slice()),table:settings.table,mode:calMode,photo};
+ try{localStorage.setItem('pdt.calibs',JSON.stringify(calib));}catch(e){calib[camLabel].photo=null;store.set('pdt.calibs',calib);}
+ Hn=null;ensureH();bgReady=false;panelMin=false;setState('learn');
+}
+function ensureH(){
+ if(calPts.length<4)return false;
+ Hn=homography(calSrc(),calPts);if(!Hn)return false;
+ buildLUT();return true;
+}
+function buildLUT(){
+ const vw=video.videoWidth,vh=video.videoHeight;if(!vw)return;
+ if(vw>=vh){PW=640;PH=Math.round(640*vh/vw);}else{PH=640;PW=Math.round(640*vw/vh);}
+ proc.width=PW;proc.height=PH;
+ const{L,W}=T();
+ for(let v=0;v<GH;v++)for(let u=0;u<GW;u++){
+  const x=(u+.5)/GW*L,y=(v+.5)/GH*W;if(!inFront(x,y)){lut[v*GW+u]=-1;continue;}
+  const[nx,ny]=applyH(Hn,x,y);const px=nx*PW,py=ny*PH;
+  lut[v*GW+u]=(px<0||py<0||px>=PW||py>=PH)?-1:((py|0)*PW+(px|0))*4;
+ }
+ const ballPx=BALL*GW/L;areaPerBall=Math.PI*(ballPx/2)**2*1.4;
+}
+
+/* ============ processing ============ */
+function loop(t){
+ if(!running)return;requestAnimationFrame(loop);
+ if(!video.videoWidth)return;
+ if(t-lastProc>=62){lastProc=t;try{processFrame();}catch(e){console.error(e);}}
+ draw();
+}
+function processFrame(){
+ if(!Hn||state==='calib')return;
+ const vw=video.videoWidth,vh=video.videoHeight;
+ if((vw>=vh)!==(PW>=PH)){buildLUT();bgReady=false;if(state!=='learn')setState('learn');}
+ frame++;
+ pctx.drawImage(video,0,0,PW,PH);
+ const d=pctx.getImageData(0,0,PW,PH).data,w=wimg.data;
+ for(let i=0,j=0,k=0;i<N;i++,j+=3,k+=4){const s=lut[i];
+  if(s<0){cur[j]=cur[j+1]=cur[j+2]=0;}else{cur[j]=d[s];cur[j+1]=d[s+1];cur[j+2]=d[s+2];}
+  w[k]=cur[j];w[k+1]=cur[j+1];w[k+2]=cur[j+2];w[k+3]=255;}
+ wctx.putImageData(wimg,0,0);
+ if(state==='learn'){
+  if(learnAcc){for(let j=0;j<N*3;j++)learnAcc[j]+=cur[j];learnN++;
+   const pr=$('#lProg');if(pr)pr.textContent='Learning… '+Math.round(100*learnN/14)+'%';
+   if(learnN>=14){for(let j=0;j
